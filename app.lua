@@ -1,3 +1,5 @@
+#!/usr/bin/env luajit
+
 do -- try to load a config file if it exists
     local ok, res = pcall(function()
         local file = debug.getinfo(1, 'S').short_src:gsub('([\\/])[^\\/]*$', '%1')..'config.lua'
