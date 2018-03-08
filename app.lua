@@ -55,7 +55,23 @@ local function guiPlayer(app, course, classesList, i, choose)
     local slider = Gtk.Scale {
         orientation = 'HORIZONTAL', draw_value = false,
         adjustment = Gtk.Adjustment{value=0, lower=0, upper=100, step_increment=1, page_increment=10},
-        hexpand = true, margin_left = 5
+        hexpand = true, margin_left = 5, margin_right = 5
+    }
+    local speed
+    local menub = Gtk.MenuButton {
+        direction = 'UP', halign = 'END',
+        popup = Gtk.Menu {
+            Gtk.MenuItem { label = 'Velocidad', visible = true, submenu = Gtk.Menu {
+                Gtk.MenuItem { label = '0.5x', visible = true, on_activate = function()speed(0.5)end },
+                Gtk.MenuItem { label = '0.75x', visible = true, on_activate = function()speed(0.75)end },
+                Gtk.MenuItem { label = 'Normal', visible = true, on_activate = function()speed(1)end },
+                Gtk.MenuItem { label = '1.25x', visible = true, on_activate = function()speed(1.25)end },
+                Gtk.MenuItem { label = '1.5x', visible = true, on_activate = function()speed(1.5)end },
+                Gtk.MenuItem { label = '2x', visible = true, on_activate = function()speed(2)end },
+            }}
+        }
+    }
+    local menu = Gtk.Menu {
     }
     local playbin = Gst.ElementFactory.make('playbin', 'playbin')
     vbox:add(video)
@@ -65,6 +81,7 @@ local function guiPlayer(app, course, classesList, i, choose)
     controls:add(stop)
     controls:add(time)
     controls:add(slider)
+    controls:add(menub)
     function vbox:on_realize()
         app:title(('OpenFING - %s: %s (%s)'):format(course.id, classesList[i].id, classesList[i].description))
     end
@@ -127,6 +144,10 @@ local function guiPlayer(app, course, classesList, i, choose)
         else
             --local types = {} for k, v in pairs(t) do table.insert(types, tostring(k)..'='..tostring(v)) end print('otra cosa?', message, table.concat(types,' '))
         end
+    end
+    speed = function(s)
+        playbin:seek(s, 'TIME', Gst.SeekFlags.FLUSH + Gst.SeekFlags.ACCURATE,
+            'SET', playbin:query_position 'TIME', 'NONE', 0)
     end
     GLib.timeout_add(GLib.PRIORITY_LOW, 100, function()
         if closed then return false end
