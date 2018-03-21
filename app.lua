@@ -18,6 +18,18 @@ local GstVideo = lgi.require 'GstVideo'
 local json = require 'json'
 local unpack = unpack or table.unpack
 
+-------------------------------------------------------------------------------
+
+local Dao = {}
+Dao.__index = Dao
+
+function Dao:new(params)
+    local file = params.file
+        or (os.getenv 'HOME' and os.getenv 'HOME':gsub('/*$', '') .. '/.lua-openfing.json')
+end
+
+-------------------------------------------------------------------------------
+
 local function versionCompare(a, b) -- similar to the '<' string operator
     local ai, bi = 1, 1
     while true do
@@ -38,6 +50,7 @@ local function guiPlayer(app, course, classesList, i, choose)
     local vbox = Gtk.Box {orientation = 'VERTICAL', margin = 10, spacing = 10}
     local video = Gtk.DrawingArea {expand = true}
     local controls = Gtk.Box {orientation = 'HORIZONTAL'}
+    local currentFormat, ignoreNextStreamError = 'MP4', false
     local back = Gtk.Button {
         label = 'Atrás',
         image = Gtk.Image { stock = Gtk.STOCK_GO_BACK, icon_size = Gtk.IconSize.BUTTON },
@@ -133,6 +146,20 @@ local function guiPlayer(app, course, classesList, i, choose)
             end
         elseif t.ERROR then
             local err, deb = message:parse_error()
+            if err.code == 'NOT_FOUND' and err.domain == Gst.ResourceError and currentFormat == 'MP4' then
+                GLib.idle_add(GLib.PRIORITY_LOW, function()
+                    playbin.uri = ('http://openfing-video.fing.edu.uy/media/%s/%s_%02d.webm'):format(
+                        course.id, course.id, tonumber(classesList[i].id))
+                    playbin:set_state('PLAYING')
+                    currentFormat = 'WEBM'
+                end)
+                ignoreNextStreamError = true
+                return
+            elseif err.code == 'FAILED' and err.domain == Gst.StreamError and ignoreNextStreamError then
+                print'ignoring'
+                ignoreNextStreamError = false
+                return
+            end
             print(err, deb)
             Gtk.MessageDialog {
                 text = ('Error code: %s (code=%s, domain=%s)\nwhile loading video\n%s'):format(
