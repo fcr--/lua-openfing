@@ -253,7 +253,7 @@ local function guiClasses(app, course)
     eva.on_clicked = function()
         os.execute("xdg-open '" .. evaLink:gsub("'", "'\\''") .. "'")
     end
-    go.on_clicked = function()
+    local function selectClass()
         local currentClassId = classesModel[classes:get_selection():get_selected_rows()[1]][1]
         local classesList = {}
         local currentI
@@ -268,6 +268,10 @@ local function guiClasses(app, course)
             end
             classes:set_cursor(Gtk.TreePath.new_from_string(tostring(rowNumber)))
         end))
+    end
+    go.on_clicked = selectClass
+    function classes:on_button_press_event(event)
+        if event.type == 'DOUBLE_BUTTON_PRESS' then selectClass() end
     end
     local msg = Soup.Message.new('GET', 'https://open.fing.edu.uy/data/' .. course.id .. '.json')
     local result = Soup.SessionSync {}:send_message(msg)
@@ -339,7 +343,14 @@ local function guiCourses(app)
         go.sensitive = true
     end
     local evaLinks = {}
-    eva.on_clicked = function()
+    local function selectCourse()
+        local row = coursesModel[courses:get_selection():get_selected_rows()[1]]
+        app:push(guiClasses(app, {id=row[1], description=row[2]}))
+    end
+    function courses:on_button_press_event(event)
+        if event.type == 'DOUBLE_BUTTON_PRESS' then selectCourse() end
+    end
+    function eva:on_clicked()
         for i, row in ipairs(courses:get_selection():get_selected_rows()) do
             local url = evaLinks[coursesModel[row][1]]
             if url:match '^https?:' then
@@ -347,10 +358,7 @@ local function guiCourses(app)
             end
         end
     end
-    go.on_clicked = function()
-        local row = coursesModel[courses:get_selection():get_selected_rows()[1]]
-        app:push(guiClasses(app, {id=row[1], description=row[2]}))
-    end
+    go.on_clicked = selectCourse
     grid.on_realize = function()
         app:title 'OpenFING'
     end
