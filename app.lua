@@ -26,7 +26,30 @@ Dao.__index = Dao
 function Dao:new(params)
     local file = params.file
         or (os.getenv 'HOME' and os.getenv 'HOME':gsub('/*$', '') .. '/.lua-openfing.json')
+    local objs = {}
+    local fd = io.open(file)
+    if fd then
+        objs = json.decode(fd:read '*all')
+        fd:close()
+    end
+    return setmetatable({objs=objs, file=file}, self)
 end
+
+function Dao:save(id, object)
+    self.objs[id] = object
+    local fd = assert(io.open(self.file, 'w'))
+    fd:write(json.encode(self.objs))
+    fd:close()
+end
+
+function Dao:load(id)
+    return self.objs[id]
+end
+
+local dao = Dao:new{}
+
+-- Objects in dao:
+-- courses = list of {code:string, eva=url:string, name=description:string}
 
 -------------------------------------------------------------------------------
 
@@ -371,10 +394,11 @@ local function guiCourses(app)
             on_response = Gtk.Widget.destroy
         }:run()
     else
-        for i, course in ipairs(json.decode(msg.response_body.data).courses) do
-            evaLinks[course.code] = course.eva
-            coursesModel:append{course.code, course.name}
-        end
+        dao:save('courses', json.decode(msg.response_body.data).courses)
+    end
+    for i, course in ipairs(dao:load 'courses') do
+        evaLinks[course.code] = course.eva
+        coursesModel:append{course.code, course.name}
     end
     return grid
 end
