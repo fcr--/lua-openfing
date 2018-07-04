@@ -9,6 +9,7 @@ do -- try to load a config file if it exists
 end
 
 local lgi = require 'lgi'
+local LuaOpenFing = lgi.package 'LuaOpenFing' -- package for custom widgets
 local GLib = lgi.require 'GLib'
 local Gtk = lgi.require 'Gtk'
 local GObject = lgi.require 'GObject'
@@ -223,6 +224,48 @@ local function guiPlayer(app, course, classesList, i, choose)
     return vbox
 end
 
+LuaOpenFing:class('ProgressCellRenderer', Gtk.CellRendererText)
+
+function LuaOpenFing.ProgressCellRenderer:do_render(cr, widget, background_area, cell_area, flags)
+    cr:new_sub_path()
+    local text = self.text
+    local degrees = math.pi / 180
+    local x, y = cell_area.x + 1, cell_area.y + cell_area.height * .2
+    local radius = cell_area.height / 3
+    local width, height = radius * 2 + #self.text, math.min(cell_area.height * .6, 30)
+    cr:arc(x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees)
+    cr:arc(x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees)
+    cr:arc(x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees)
+    cr:arc(x + radius, y + radius, radius, 180 * degrees, 270 * degrees)
+    cr:close_path()
+    cr:stroke()
+    for k,v in pairs(self.priv) do
+        print('foo',k,v)
+    end
+    cr:set_source_rgb(1, 0, 0)
+    cr:new_path()
+    local from, to = text:find '1+'
+    while from do
+        cr:move_to(cell_area.x + 1 + radius + from - 1, cell_area.y + cell_area.height / 2)
+        cr:line_to(cell_area.x + 1 + radius + to, cell_area.y + cell_area.height / 2)
+        from, to = text:find('1+', to+1)
+    end
+    cr:stroke()
+end
+
+function LuaOpenFing.ProgressCellRenderer:do_get_preferred_width(...)
+    local m = 22 + #self.text
+    return m, m
+end
+
+function LuaOpenFing.ProgressCellRenderer:do_get_preferred_height_for_width(...)
+    return 10, 10
+end
+
+function LuaOpenFing.ProgressCellRenderer:do_get_preferred_height(...)
+    return 10, 10
+end
+
 local function guiClasses(app, course)
     local grid = Gtk.Grid {
         margin = 10
@@ -235,6 +278,7 @@ local function guiClasses(app, course)
     }
     local classesModel = Gtk.ListStore.new {
         GObject.Type.STRING,
+        GObject.Type.STRING,
         GObject.Type.STRING
     }
     local classes = Gtk.TreeView {
@@ -242,6 +286,7 @@ local function guiClasses(app, course)
         model = classesModel,
         Gtk.TreeViewColumn {title = "Id", sort_column_id = 0, { Gtk.CellRendererText {}, { text = 1 } }},
         Gtk.TreeViewColumn {title = "Nombre", sort_column_id = 1, { Gtk.CellRendererText {}, { markup = 2 } }},
+        Gtk.TreeViewColumn {title = "Progreso", sort_column_id = 1, { LuaOpenFing.ProgressCellRenderer {}, { text = 3 } }},
     }
     local back = Gtk.Button {
         label = 'Atrás',
@@ -318,7 +363,7 @@ local function guiClasses(app, course)
         end
         table.sort(info.classesKeys, versionCompare)
         for i, classId in ipairs(info.classesKeys) do
-            classesModel:append{classId, info.classes[classId]}
+            classesModel:append{classId, info.classes[classId], ''}
         end
     end
     return grid
@@ -450,3 +495,4 @@ function App:run()
 end
 
 App:run()
+-- vi: et sw=4
