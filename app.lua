@@ -466,7 +466,7 @@ end
 -- gui objects never push themselves, instead they return the widget to be pushed
 function App:push(gui, cb_on_pop)
     if #self.children > 0 then
-        self.window:remove(self.children[#self.children])
+        self.window:remove(self.children[#self.children].gui)
     end
     self.children[#self.children + 1] = {gui = gui, cb_on_pop = cb_on_pop}
     self.window:add(gui)
