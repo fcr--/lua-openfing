@@ -335,7 +335,10 @@ local function guiClasses(app, course)
                 if row[1] == classesList[i].id then rowNumber = i - 1 end
             end
             classes:set_cursor(Gtk.TreePath.new_from_string(tostring(rowNumber)))
-        end))
+        end), function() -- called on player's pop
+            local idx = classes:get_selection():get_selected_rows()[1]
+            classesModel[idx][3] = '' -- TODO: update progress string in model
+        end)
     end
     go.on_clicked = selectClass
     function classes:on_button_press_event(event)
@@ -363,7 +366,7 @@ local function guiClasses(app, course)
         end
         table.sort(info.classesKeys, versionCompare)
         for i, classId in ipairs(info.classesKeys) do
-            classesModel:append{classId, info.classes[classId], ''}
+            classesModel:append{classId, info.classes[classId], ''} -- TODO: update progress string
         end
     end
     return grid
@@ -461,23 +464,25 @@ function App:title(text)
 end
 
 -- gui objects never push themselves, instead they return the widget to be pushed
-function App:push(gui)
+function App:push(gui, cb_on_pop)
     if #self.children > 0 then
         self.window:remove(self.children[#self.children])
     end
-    self.children[#self.children + 1] = gui
+    self.children[#self.children + 1] = {gui = gui, cb_on_pop = cb_on_pop}
     self.window:add(gui)
     self.window:show_all()
 end
 
 -- however they do pop by themselves.
-function App:pop(gui)
+function App:pop()
     assert(#self.children > 0)
-    self.window:remove(self.children[#self.children])
+    local cb_on_pop = self.children[#self.children].cb_on_pop
+    self.window:remove(self.children[#self.children].gui)
     self.children[#self.children] = nil
     if #self.children > 0 then
-        self.window:add(self.children[#self.children])
+        self.window:add(self.children[#self.children].gui)
     end
+    if cb_on_pop then cb_on_pop() end
 end
 
 function App:run()
