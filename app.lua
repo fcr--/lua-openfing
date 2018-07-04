@@ -70,7 +70,9 @@ end
 
 local function guiPlayer(app, course, classesList, i, choose)
     local closed = false
-    local old = {}
+    local dao_id = ('class/%s/%s'):format(course.id, classesList[i].id)
+    local status = dao:load(dao_id) or {progress=''}
+    status.minute = 0
     local vbox = Gtk.Box {orientation = 'VERTICAL', margin = 10, spacing = 10}
     local video = Gtk.DrawingArea {expand = true}
     local controls = Gtk.Box {orientation = 'HORIZONTAL'}
@@ -91,7 +93,9 @@ local function guiPlayer(app, course, classesList, i, choose)
     }
     local slider = Gtk.Scale {
         orientation = 'HORIZONTAL', draw_value = false,
-        adjustment = Gtk.Adjustment{value=0, lower=0, upper=100, step_increment=1, page_increment=10},
+        adjustment = Gtk.Adjustment {
+            value = 0, lower = 0, upper = status.duration and status.duration / Gst.SECOND or 100,
+            step_increment = 1, page_increment = 10 },
         hexpand = true, margin_left = 5, margin_right = 5
     }
     local speed
@@ -155,10 +159,15 @@ local function guiPlayer(app, course, classesList, i, choose)
     end
     function slider:on_value_changed()
         local value = slider:get_value()
-        local oldValue = old.position and old.position / Gst.SECOND or 0
+        local oldValue = status.position and status.position / Gst.SECOND or 0
         if math.abs(value - oldValue) > 1 then
             playbin:seek_simple('TIME', Gst.SeekFlags.FLUSH + Gst.SeekFlags.KEY_UNIT, value * Gst.SECOND)
             time.label = ('%d:%02d'):format(math.floor(value / 60), math.floor(value) % 60)
+            if value < oldValue and math.floor(value / 60) == status.minute then
+                -- exception: scrolling back in the same minute!
+            else
+                status.minute = math.ceil(value / 60)
+            end
         end
     end
     playbin:get_bus().on_message = function(bus, message)
@@ -204,17 +213,25 @@ local function guiPlayer(app, course, classesList, i, choose)
         if closed then return false end
         local duration = playbin:query_duration 'TIME'
         local position = playbin:query_position 'TIME'
-        if duration ~= old.duration then
+        if duration and duration ~= status.duration then
             slider:set_range(0, duration / Gst.SECOND)
-            old.duration = duration
+            status.duration = duration
+            local minutes = math.floor(duration / Gst.SECOND / 60)
+            status.progress = (status.progress .. ('0'):rep(minutes)):sub(1, minutes + 1)
+            dao:save(dao_id, status)
         end
-        if position ~= old.position then
-            old.position = position
-            -- Range.set_value triggers a value-changed callback, that's why we update old.position
+        if position ~= status.position then
+            status.position = position
+            -- Range.set_value triggers a value-changed callback, that's why we update status.position
             -- before the signal is sent.
             local seconds = position and position / Gst.SECOND or 0
             slider:set_value(seconds)
             time.label = ('%d:%02d'):format(math.floor(seconds / 60), math.floor(seconds) % 60)
+            if seconds and math.floor(seconds / 60) == status.minute + 1 then
+                status.progress = status.progress:sub(1, status.minute) .. '1' .. status.progress:sub(status.minute + 2)
+                status.minute = status.minute + 1
+                dao:save(dao_id, status)
+            end
         end
         return true
     end)
@@ -331,13 +348,15 @@ local function guiClasses(app, course)
         end
         app:push(guiPlayer(app, course, classesList, currentI, function(i)
             local rowNumber
-            for i, row in ipairs(classesModel) do
-                if row[1] == classesList[i].id then rowNumber = i - 1 end
+            for j, row in ipairs(classesModel) do
+                if row[1] == classesList[i].id then rowNumber = j - 1 end
             end
             classes:set_cursor(Gtk.TreePath.new_from_string(tostring(rowNumber)))
         end), function() -- called on player's pop
             local idx = classes:get_selection():get_selected_rows()[1]
-            classesModel[idx][3] = '' -- TODO: update progress string in model
+            local classId = classesModel[idx][1]
+            local progress = (dao:load(('class/%s/%s'):format(course.id, classId)) or {progress=''}).progress
+            classesModel[idx][3] = progress
         end)
     end
     go.on_clicked = selectClass
@@ -356,18 +375,20 @@ local function guiClasses(app, course)
             on_response = Gtk.Widget.destroy
         }:run()
     else
-        info = json.decode(msg.response_body.data)
-        if info.eva and info.eva:match '^https?:' then
-            eva.sensitive = true
-        end
-        info.classesKeys = {}
-        for classId, _name in pairs(info.classes) do
-            table.insert(info.classesKeys, classId)
-        end
-        table.sort(info.classesKeys, versionCompare)
-        for i, classId in ipairs(info.classesKeys) do
-            classesModel:append{classId, info.classes[classId], ''} -- TODO: update progress string
-        end
+        dao:save('course/'..course.id, json.decode(msg.response_body.data))
+    end
+    info = dao:load('course/'..course.id)
+    if info.eva and info.eva:match '^https?:' then
+        eva.sensitive = true
+    end
+    info.classesKeys = {}
+    for classId, _name in pairs(info.classes) do
+        table.insert(info.classesKeys, classId)
+    end
+    table.sort(info.classesKeys, versionCompare)
+    for i, classId in ipairs(info.classesKeys) do
+        local progress = (dao:load(('class/%s/%s'):format(course.id, classId)) or {progress=''}).progress
+        classesModel:append{classId, info.classes[classId], progress}
     end
     return grid
 end
