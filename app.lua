@@ -96,7 +96,10 @@ local function guiPlayer(app, course, classesList, i, choose)
         adjustment = Gtk.Adjustment {
             value = 0, lower = 0, upper = status.duration and status.duration / Gst.SECOND or 100,
             step_increment = 1, page_increment = 10 },
-        hexpand = true, margin_left = 5, margin_right = 5
+        hexpand = true, margin_left = 5
+    }
+    local remtime = Gtk.Label {
+        margin_left = 5, margin_right = 5
     }
     local speed
     local menub = Gtk.MenuButton {
@@ -122,6 +125,7 @@ local function guiPlayer(app, course, classesList, i, choose)
     controls:add(stop)
     controls:add(time)
     controls:add(slider)
+    controls:add(remtime)
     controls:add(menub)
     function vbox:on_realize()
         app:title(('OpenFING - %s: %s (%s)'):format(course.id, classesList[i].id, classesList[i].description))
@@ -220,13 +224,14 @@ local function guiPlayer(app, course, classesList, i, choose)
             status.progress = (status.progress .. ('0'):rep(minutes)):sub(1, minutes + 1)
             dao:save(dao_id, status)
         end
-        if position ~= status.position then
+        if position and position ~= status.position then
             status.position = position
             -- Range.set_value triggers a value-changed callback, that's why we update status.position
             -- before the signal is sent.
-            local seconds = position and position / Gst.SECOND or 0
+            local seconds, rem = position / Gst.SECOND, (position - (status.duration or 0)) / Gst.SECOND
             slider:set_value(seconds)
             time.label = ('%d:%02d'):format(math.floor(seconds / 60), math.floor(seconds) % 60)
+            remtime.label = ('%d:%02d'):format(math.floor(rem / 60), math.floor(math.abs(rem)) % 60)
             if seconds and math.floor(seconds / 60) == status.minute + 1 then
                 status.progress = status.progress:sub(1, status.minute) .. '1' .. status.progress:sub(status.minute + 2)
                 status.minute = status.minute + 1
