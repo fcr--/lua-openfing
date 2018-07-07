@@ -115,8 +115,6 @@ local function guiPlayer(app, course, classesList, i, choose)
             }}
         }
     }
-    local menu = Gtk.Menu {
-    }
     local playbin = Gst.ElementFactory.make('playbin', 'playbin')
     vbox:add(video)
     vbox:add(controls)
@@ -327,12 +325,18 @@ local function guiClasses(app, course)
         halign = 'END', margin_left = 10, margin_top = 10,
         sensitive = false
     }
+    local markVideo
+    local menu = Gtk.Menu {
+        Gtk.MenuItem { label = 'Marcar video como visto.', visible = true, on_activate = function()markVideo(true)end },
+        Gtk.MenuItem { label = 'Marcar video como no visto.', visible = true, on_activate = function()markVideo(false)end }
+    }
     grid:attach(label, 0, 0, 3, 1)
     grid:attach(classesScroll, 0, 1, 3, 1)
     classesScroll:add(classes)
     grid:attach(back, 0, 2, 1, 1)
     grid:attach(eva, 1, 2, 1, 1)
     grid:attach(go, 2, 2, 1, 1)
+    menu:attach_to_widget(classes)
     local info = {}
     classes:get_selection().on_changed = function()
         go.sensitive = true
@@ -342,6 +346,16 @@ local function guiClasses(app, course)
     end
     eva.on_clicked = function()
         os.execute("xdg-open '" .. evaLink:gsub("'", "'\\''") .. "'")
+    end
+    function markVideo(viewed)
+        local row = classes:get_selection():get_selected_rows()[1]
+        if not row then return end
+        local dao_id = ('class/%s/%s'):format(course.id, classesModel[row][1])
+        local cls = dao:load(dao_id)
+        if not cls then return end
+        cls.progress = cls.progress:gsub('.', viewed and '1' or '0')
+        dao:save(dao_id, cls)
+        classesModel[row][3] = cls.progress
     end
     local function selectClass()
         local currentClassId = classesModel[classes:get_selection():get_selected_rows()[1]][1]
@@ -367,6 +381,9 @@ local function guiClasses(app, course)
     go.on_clicked = selectClass
     function classes:on_button_press_event(event)
         if event.type == 'DOUBLE_BUTTON_PRESS' then selectClass() end
+        if event.type == 'BUTTON_PRESS' and event.button == 3 then
+            menu:popup(nil, nil, nil, event.button, event.time)
+        end
     end
     local msg = Soup.Message.new('GET', 'https://open.fing.edu.uy/data/' .. course.id .. '.json')
     local result = Soup.SessionSync {}:send_message(msg)
