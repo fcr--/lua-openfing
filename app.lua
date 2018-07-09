@@ -68,6 +68,11 @@ local function versionCompare(a, b) -- similar to the '<' string operator
     end
 end
 
+local function timeFormat(seconds)
+    if seconds < 0 then return '-'..timeFormat(-seconds) end
+    return ('%d:%02d'):format(math.floor(seconds / 60), math.floor(seconds) % 60)
+end
+
 local function guiPlayer(app, course, classesList, i, choose)
     local closed = false
     local dao_id = ('class/%s/%s'):format(course.id, classesList[i].id)
@@ -164,7 +169,7 @@ local function guiPlayer(app, course, classesList, i, choose)
         local oldValue = status.position and status.position / Gst.SECOND or 0
         if math.abs(value - oldValue) > 1 then
             playbin:seek_simple('TIME', Gst.SeekFlags.FLUSH + Gst.SeekFlags.KEY_UNIT, value * Gst.SECOND)
-            time.label = ('%d:%02d'):format(math.floor(value / 60), math.floor(value) % 60)
+            time.label = timeFormat(value)
             if value < oldValue and math.floor(value / 60) == status.minute then
                 -- exception: scrolling back in the same minute!
             else
@@ -228,8 +233,8 @@ local function guiPlayer(app, course, classesList, i, choose)
             -- before the signal is sent.
             local seconds, rem = position / Gst.SECOND, (position - (status.duration or 0)) / Gst.SECOND
             slider:set_value(seconds)
-            time.label = ('%d:%02d'):format(math.floor(seconds / 60), math.floor(seconds) % 60)
-            remtime.label = ('%d:%02d'):format(math.floor(rem / 60), math.floor(math.abs(rem)) % 60)
+            time.label = timeFormat(seconds)
+            remtime.label = timeFormat(rem)
             if seconds and math.floor(seconds / 60) == status.minute + 1 then
                 status.progress = status.progress:sub(1, status.minute) .. '1' .. status.progress:sub(status.minute + 2)
                 status.minute = status.minute + 1
