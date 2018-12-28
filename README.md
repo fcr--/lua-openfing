@@ -22,4 +22,4 @@ cd lua-openfing
 * Lua: [reference](https://www.lua.org/manual/5.1/manual.html).
 
 ## Building lgi
-If you need to build lgi (if you find yourself fighting against [#132](pavouk/lgi#132)), make sure `libgirepository1.0-dev` is installed before running `luarock install lgi`.
+If you need to build lgi (if you find yourself fighting against [#132](https://github.com/pavouk/lgi/issues/132)), make sure `libgirepository1.0-dev` is installed before running `luarock install lgi`.
