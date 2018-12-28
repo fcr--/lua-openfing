@@ -20,3 +20,6 @@ cd lua-openfing
 * lgi: [guide](https://github.com/pavouk/lgi/blob/master/docs/guide.md), [treeview example](https://github.com/pavouk/lgi/blob/master/samples/gtk-demo/demo-treeview-liststore.lua), [stockbrowser example](https://github.com/pavouk/lgi/blob/master/samples/gtk-demo/demo-stockbrowser.lua), [get_xid method](https://github.com/pavouk/lgi/issues/6#issuecomment-5302793).
 * OpenFING: [public api](https://open.fing.edu.uy/data/).
 * Lua: [reference](https://www.lua.org/manual/5.1/manual.html).
+
+# Building lgi
+If you need to build lgi, make sure `libgirepository1.0-dev` is installed before running `luarock install lgi`.
