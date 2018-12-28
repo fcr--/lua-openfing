@@ -21,5 +21,5 @@ cd lua-openfing
 * OpenFING: [public api](https://open.fing.edu.uy/data/).
 * Lua: [reference](https://www.lua.org/manual/5.1/manual.html).
 
-# Building lgi
-If you need to build lgi, make sure `libgirepository1.0-dev` is installed before running `luarock install lgi`.
+## Building lgi
+If you need to build lgi (if you find yourself fighting against pavouk/lgi#132), make sure `libgirepository1.0-dev` is installed before running `luarock install lgi`.
